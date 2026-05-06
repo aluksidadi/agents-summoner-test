@@ -1,5 +1,5 @@
-ARG HERMES_GIT_REF=latest
-FROM nousresearch/hermes-agent:${HERMES_GIT_REF}
+ARG HERMES_IMAGE_TAG=latest
+FROM nousresearch/hermes-agent:${HERMES_IMAGE_TAG}
 
 USER root
 

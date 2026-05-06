@@ -8,7 +8,7 @@ export async function run(cfg: AgentConfig): Promise<void> {
 
   process.stdout.write(`[deploy 2/2] deploying ${cfg.fly_app}\n`);
   await deploy(cfg.fly_app, flyTomlPath, dockerfilePath, {
-    HERMES_GIT_REF: cfg.hermes_git_ref,
+    HERMES_IMAGE_TAG: cfg.hermes_image_tag,
   });
 
   process.stdout.write(`\ndeploy complete \u2014 ${cfg.fly_app} redeployed.\n`);

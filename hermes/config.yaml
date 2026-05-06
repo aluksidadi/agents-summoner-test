@@ -1,0 +1,10 @@
+model:
+  default: "openrouter/anthropic/claude-opus-4.6"
+  provider: "auto"
+
+platforms:
+  discord:
+    require_mention: true
+    reply_to_mode: "all"
+    reactions: true
+    auto_thread: false

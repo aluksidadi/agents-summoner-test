@@ -9,6 +9,7 @@ Pre-flight (run `bun run doctor` first — it checks all of the below):
 - [ ] `flyctl` is on PATH and authenticated (`flyctl auth whoami`)
 - [ ] Infisical project has folder `/<name>` in env `prod` with all `required_secrets` populated
 - [ ] Infisical machine identity `<name>-machine-id` exists with an Additional Privilege scoped to `secretPath: /<name>` (read). See `.team/design/DESIGN.md §9 step 5`.
+- [ ] `hermes/config.yaml` has the correct `model:` value — model is not read from env vars, only from this file. First boot copies it to the volume; subsequent boots use the volume copy. A model change requires a redeploy.
 
 Run:
 

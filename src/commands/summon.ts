@@ -65,9 +65,9 @@ export async function run(cfg: AgentConfig): Promise<void> {
     { stage: true }
   );
 
-  step(7, TOTAL, `deploying ${cfg.fly_app} (image: nousresearch/hermes-agent:${cfg.hermes_image_tag})`);
+  step(7, TOTAL, `deploying ${cfg.fly_app} (image: nousresearch/hermes-agent:${cfg.hermes_git_ref})`);
   await deploy(cfg.fly_app, flyTomlPath, dockerfilePath, {
-    HERMES_GIT_REF: cfg.hermes_image_tag,
+    HERMES_GIT_REF: cfg.hermes_git_ref,
   });
 
   process.stdout.write(`\nsummon complete — ${cfg.fly_app} deployed.\n`);

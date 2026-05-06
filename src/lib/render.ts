@@ -13,18 +13,13 @@ export function renderFlyToml(config: AgentConfig): string {
     .replace(/\{\{PRIMARY_REGION\}\}/g, config.primary_region);
 }
 
-export async function stageBuildContext(
-  config: AgentConfig
-): Promise<{ dir: string; flyTomlPath: string; dockerfilePath: string }> {
+export async function stageBuildContext(config: AgentConfig): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), "hermes-deploy-"));
 
-  const flyTomlPath = join(dir, "fly.toml");
-  writeFileSync(flyTomlPath, renderFlyToml(config), "utf-8");
-
-  const dockerfilePath = join(dir, "Dockerfile");
-  copyFileSync(join(HERMES_DIR, "Dockerfile"), dockerfilePath);
+  writeFileSync(join(dir, "fly.toml"), renderFlyToml(config), "utf-8");
+  copyFileSync(join(HERMES_DIR, "Dockerfile"), join(dir, "Dockerfile"));
   copyFileSync(join(HERMES_DIR, "entrypoint.sh"), join(dir, "entrypoint.sh"));
   copyFileSync(join(HERMES_DIR, "config.yaml"), join(dir, "config.yaml"));
 
-  return { dir, flyTomlPath, dockerfilePath };
+  return dir;
 }

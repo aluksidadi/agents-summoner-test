@@ -24,7 +24,7 @@ function preflight(cfg: AgentConfig): void {
   const flyCheck = spawnSync("flyctl", ["--version"], { encoding: "utf-8" });
   if (flyCheck.error || flyCheck.status !== 0) {
     process.stderr.write(
-      "summon: flyctl not found on PATH \u2014 install via https://fly.io/docs/hands-on/install-flyctl/\n"
+      "summon: flyctl not found on PATH — install via https://fly.io/docs/hands-on/install-flyctl/\n"
     );
     process.exit(1);
   }
@@ -71,7 +71,7 @@ export async function run(cfg: AgentConfig): Promise<void> {
   preflight(cfg);
 
   step(3, TOTAL, "staging build context");
-  const { flyTomlPath, dockerfilePath } = await stageBuildContext(cfg);
+  const buildDir = await stageBuildContext(cfg);
 
   step(4, TOTAL, `ensuring Fly app ${cfg.fly_app} exists`);
   if (!(await appExists(cfg.fly_app))) {
@@ -97,7 +97,7 @@ export async function run(cfg: AgentConfig): Promise<void> {
   );
 
   step(7, TOTAL, `deploying ${cfg.fly_app} (image: nousresearch/hermes-agent:${cfg.hermes_git_ref})`);
-  await deploy(cfg.fly_app, flyTomlPath, dockerfilePath, {
+  await deploy(cfg.fly_app, buildDir, {
     HERMES_GIT_REF: cfg.hermes_git_ref,
   });
 
@@ -105,12 +105,12 @@ export async function run(cfg: AgentConfig): Promise<void> {
   const started = await waitUntilStarted(cfg.fly_app);
   if (!started) {
     process.stderr.write(
-      `summon: machine did not reach started state within 90s \u2014 run 'bun run logs ${cfg.name}' to investigate\n`
+      `summon: machine did not reach started state within 90s — run 'bun run logs ${cfg.name}' to investigate\n`
     );
     process.exit(1);
   }
-  process.stdout.write("machine started \u2014 tailing logs for 30s\n\n");
+  process.stdout.write("machine started — tailing logs for 30s\n\n");
   await tailLogsFor(cfg.fly_app, 30_000);
 
-  process.stdout.write(`\nsummon complete \u2014 ${cfg.fly_app} deployed.\n`);
+  process.stdout.write(`\nsummon complete — ${cfg.fly_app} deployed.\n`);
 }

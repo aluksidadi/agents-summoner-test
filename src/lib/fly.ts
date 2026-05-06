@@ -157,6 +157,29 @@ export function tailLogs(app: string): never {
   return flyStream(["logs", "--app", app]);
 }
 
+export async function pollUntilStarted(app: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const s = await status(app);
+    if (s.machines.length > 0 && s.machines.every((m) => m.state === "started")) return true;
+    await Bun.sleep(5000);
+  }
+  return false;
+}
+
+export async function tailLogsFor(app: string, durationMs: number): Promise<void> {
+  const token = process.env.FLY_API_TOKEN;
+  const proc = Bun.spawn(["flyctl", "logs", "--app", app], {
+    env: { ...process.env, ...(token ? { FLY_API_TOKEN: token } : {}) },
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "inherit",
+  });
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, durationMs));
+  await Promise.race([proc.exited, timeout]);
+  proc.kill();
+}
+
 export async function destroyApp(app: string): Promise<void> {
   await fly(["apps", "destroy", app, "--yes"]);
 }

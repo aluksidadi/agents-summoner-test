@@ -18,10 +18,8 @@ INFISICAL_TOKEN=$(
 export INFISICAL_TOKEN
 
 HERMES_HOME="${HERMES_HOME:-/opt/data}"
-if [ ! -f "$HERMES_HOME/config.yaml" ]; then
-  mkdir -p "$HERMES_HOME"
-  cp /opt/hermes-defaults/config.yaml "$HERMES_HOME/config.yaml"
-fi
+mkdir -p "$HERMES_HOME"
+cp /opt/hermes-defaults/config.yaml "$HERMES_HOME/config.yaml"
 
 exec infisical run \
   --token="$INFISICAL_TOKEN" \

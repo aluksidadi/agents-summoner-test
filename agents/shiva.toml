@@ -1,0 +1,22 @@
+name           = "shiva"
+display_name   = "Shiva"
+
+fly_app        = "hermes-shiva"
+primary_region = "ord"
+vm_size        = "shared-cpu-1x"
+vm_memory_mb   = 512
+volume_name    = "hermes_data"
+volume_size_gb = 10
+
+hermes_git_ref = "latest"
+hermes_model   = "openrouter/anthropic/claude-opus-4.6"
+
+infisical_env  = "prod"
+infisical_path = "/shiva"
+
+required_secrets = [
+  "DISCORD_BOT_TOKEN",
+  "DISCORD_HOME_CHANNEL",
+  "DISCORD_ALLOWED_USERS",
+  "OPENROUTER_API_KEY",
+]

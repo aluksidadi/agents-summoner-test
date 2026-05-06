@@ -1,7 +1,5 @@
-export async function run(agent: string): Promise<void> {
-  if (!agent) {
-    process.stderr.write("Usage: bun run destroy <agent>\n");
-    process.exit(1);
-  }
+import type { AgentConfig } from "../config";
+
+export async function run(cfg: AgentConfig): Promise<void> {
   throw new Error("not implemented");
 }

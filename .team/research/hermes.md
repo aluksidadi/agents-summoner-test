@@ -167,17 +167,11 @@ but is a web UI, not a health probe.
 
 ## Open Questions
 
-1. **Discord gateway command** — the `hermes discord` subcommand was inferred from
-   CLI structure and config; the raw `discord_gateway.py` file returned 404 from
-   GitHub, so the exact invocation is not verified from source. Confirm with
-   `hermes --help` inside the container.
+1. **RESOLVED (T01, 2026-05-06)** — Correct invocation is `hermes gateway run`. `hermes discord` does not exist. Upstream `entrypoint.sh` ends with `exec hermes "$@"`; pass `gateway run` as CMD args. See `.team/learnings.md §T01`.
 
-2. **Image on GHCR** — the repo references a Docker image but the canonical
-   published image tag (e.g., `ghcr.io/nousresearch/hermes-agent:latest`) was not
-   confirmed. If no pre-built image exists, you must build from source. Check
-   `docker/` directory and the repo's GitHub Actions workflows.
+2. **RESOLVED (T01, 2026-05-06)** — Image is published on Docker Hub as `nousresearch/hermes-agent:latest`. GHCR (`ghcr.io/nousresearch/hermes-agent`) returns 403 and is not published. Use `FROM nousresearch/hermes-agent:<sha>` in `hermes/Dockerfile`.
 
 3. **Config on ephemeral container** — because `config.yaml` lives on the volume,
    first-boot configuration (model selection, Discord channel whitelist) needs either
    a pre-populated volume snapshot or a startup script that writes the file before
-   `hermes discord` runs.
+   `hermes gateway run` runs.

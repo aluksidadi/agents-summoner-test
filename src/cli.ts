@@ -6,6 +6,7 @@ import { run as runStatus } from "./commands/status";
 import { run as runDestroy } from "./commands/destroy";
 import { run as runList } from "./commands/list";
 import { run as runDoctor } from "./commands/doctor";
+import { loadAgentConfig } from "./config";
 
 const HELP = `agents-summoner — control plane for Hermes agents
 
@@ -29,7 +30,9 @@ COMMANDS
                       present in env, every agent config parseable.
 `;
 
-const [, , command, agent] = process.argv;
+const AGENT_COMMANDS = new Set(["summon", "deploy", "secrets", "logs", "status", "destroy"]);
+
+const [, , command, agentArg] = process.argv;
 
 if (!command || command === "--help" || command === "-h") {
   process.stdout.write(HELP);
@@ -39,23 +42,24 @@ if (!command || command === "--help" || command === "-h") {
 async function main() {
   switch (command) {
     case "summon":
-      await runSummon(agent);
-      break;
     case "deploy":
-      await runDeploy(agent);
-      break;
     case "secrets":
-      await runSecrets(agent);
-      break;
     case "logs":
-      await runLogs(agent);
-      break;
     case "status":
-      await runStatus(agent);
+    case "destroy": {
+      if (!agentArg) {
+        process.stderr.write(`Usage: bun run ${command} <agent>\n`);
+        process.exit(1);
+      }
+      const cfg = loadAgentConfig(agentArg);
+      if (command === "summon") await runSummon(cfg);
+      else if (command === "deploy") await runDeploy(cfg);
+      else if (command === "secrets") await runSecrets(cfg);
+      else if (command === "logs") await runLogs(cfg);
+      else if (command === "status") await runStatus(cfg);
+      else if (command === "destroy") await runDestroy(cfg);
       break;
-    case "destroy":
-      await runDestroy(agent);
-      break;
+    }
     case "list":
       await runList();
       break;

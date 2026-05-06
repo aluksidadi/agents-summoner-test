@@ -251,6 +251,16 @@ Order matters: our entrypoint runs **before** Infisical injects env, upstream's 
 
 **Revisit triggers:** upstream stops publishing the image; we need a custom Hermes patch; Docker Hub rate-limiting becomes a deploy blocker.
 
+**Pinning policy (architect, 2026-05-06):** `hermes_image_tag` accepts three forms, in order of preference:
+
+1. **Digest pin** — `nousresearch/hermes-agent@sha256:<digest>`. Mandatory for the first real Ifrit deploy (T11) and onward. Immutable. The PR that bumps a digest must include the upstream Hermes commit SHA the digest corresponds to (look at the upstream `docker-publish.yml` run for that tag and capture the `git rev-parse HEAD` of that build).
+2. **Version tag** — `v0.12.0`. Acceptable for short-lived development branches when a new release lands and we haven't yet captured the digest. Convert to a digest pin before merging to `main`.
+3. **`latest`** — only allowed in throwaway probe / debug branches. CI / `doctor` should warn if `agents/<name>.toml` ships `hermes_image_tag = "latest"` on `main`. (Future ticket; not v1.)
+
+Rationale: `latest` is mutable and Docker Hub doesn't guarantee it points to a specific commit; we lose reproducibility the moment upstream pushes again. A version tag is mutable in principle (upstream could re-tag) but stable in practice. Only the `@sha256:` digest is byte-identical across pulls. Bumping it must be a deliberate human-reviewed change.
+
+**Volume mount target (resolved 2026-05-06):** Upstream defaults `HERMES_HOME=/opt/data` and writes skills/sessions/memories under it (probe §3, §5). Our existing `volume_name = "hermes_data"` mounted at `/opt/data` already matches that contract — no `HERMES_HOME` override required. Tickets that say `/data` (T8/T9 in the current `tickets.md`) are stale; PM to fix.
+
 ---
 
 ## 7. Deploy flow — `bun run summon ifrit`
@@ -338,7 +348,8 @@ This is what the user does **once** before any `summon` command works. Engineer-
 
 ## 10. Risks & open items
 
-- **Hermes CLI invocation.** `hermes discord` is inferred, not source-confirmed. Ticket #1 probes the actual subcommand inside the upstream image before we finalize `entrypoint.sh`. Reading research file `.team/research/hermes.md` Open Question #1.
+- **Hermes CLI invocation.** RESOLVED 2026-05-06 by T1 probe (upstream SHA `b62a82e0c3fbcdf219824c1512de180bae8a125c`). Correct invocation is `hermes gateway run` (not `hermes discord` — that subcommand does not exist). All §5/§6/§7 references updated. See `.team/learnings.md` §T01 and `.team/research/hermes-probe.md` for source-level evidence. T7/T8 unblocked.
+- **Image registry.** RESOLVED 2026-05-06 by T1 probe. Image is published on Docker Hub (`docker.io/nousresearch/hermes-agent`), not GHCR. §6 redesigned to `FROM`-image (digest-pinned) per probe. See `.team/learnings.md` §T01.
 - **Infisical folder-scoped privilege.** The exact UI/API path for an Additional Privilege scoped to a `secretPath` is partially documented. Risk that we discover during setup that the privilege model can't enforce per-folder isolation as described. Mitigation: ticket #4 includes a verification step (try to read `/shiva` with the `ifrit-machine-id` token; expect 403). If it fails, fallback is one Infisical project per agent — minor refactor of `agents/<name>.toml` to add `infisical_project_id`.
 - **Build time.** First `summon` may take 5–10 min on a remote builder. Subsequent deploys cache.
 - **Volume zone affinity.** A volume in `ord` pins the machine to `ord`. If we destroy the machine, the new one must come up in the same region. Launcher's `destroy` command must remove the volume explicitly to avoid orphan storage charges.

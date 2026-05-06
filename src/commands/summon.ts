@@ -1,6 +1,6 @@
 import { spawnSync } from "child_process";
 import type { AgentConfig } from "../config";
-import { appExists, createApp, volumeExists, createVolume, setSecrets, deploy } from "../lib/fly";
+import { appExists, createApp, volumeExists, createVolume, setSecrets, deploy, status } from "../lib/fly";
 import { stageBuildContext } from "../lib/render";
 
 function step(n: number, total: number, msg: string): void {
@@ -24,14 +24,45 @@ function preflight(cfg: AgentConfig): void {
   const flyCheck = spawnSync("flyctl", ["--version"], { encoding: "utf-8" });
   if (flyCheck.error || flyCheck.status !== 0) {
     process.stderr.write(
-      "summon: flyctl not found on PATH — install via https://fly.io/docs/hands-on/install-flyctl/\n"
+      "summon: flyctl not found on PATH \u2014 install via https://fly.io/docs/hands-on/install-flyctl/\n"
     );
     process.exit(1);
   }
 }
 
+async function waitUntilStarted(app: string, timeoutMs = 90_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const { machines } = await status(app);
+      if (machines.length > 0 && machines.every((m) => m.state === "started")) {
+        return true;
+      }
+    } catch {
+      // status may transiently fail right after deploy
+    }
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
+  return false;
+}
+
+async function tailLogsFor(app: string, durationMs = 30_000): Promise<void> {
+  const token = process.env.FLY_API_TOKEN;
+  const proc = Bun.spawn(["flyctl", "logs", "--app", app], {
+    env: { ...process.env, ...(token ? { FLY_API_TOKEN: token } : {}) },
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "inherit",
+  });
+  await Promise.race([
+    proc.exited,
+    new Promise<void>((r) => setTimeout(r, durationMs)),
+  ]);
+  proc.kill();
+}
+
 export async function run(cfg: AgentConfig): Promise<void> {
-  const TOTAL = 7;
+  const TOTAL = 8;
   const upper = cfg.name.toUpperCase();
 
   step(1, TOTAL, `config loaded for ${cfg.name}`);
@@ -70,5 +101,16 @@ export async function run(cfg: AgentConfig): Promise<void> {
     HERMES_GIT_REF: cfg.hermes_git_ref,
   });
 
-  process.stdout.write(`\nsummon complete — ${cfg.fly_app} deployed.\n`);
+  step(8, TOTAL, "waiting for machine to reach started state (90s timeout)");
+  const started = await waitUntilStarted(cfg.fly_app);
+  if (!started) {
+    process.stderr.write(
+      `summon: machine did not reach started state within 90s \u2014 run 'bun run logs ${cfg.name}' to investigate\n`
+    );
+    process.exit(1);
+  }
+  process.stdout.write("machine started \u2014 tailing logs for 30s\n\n");
+  await tailLogsFor(cfg.fly_app, 30_000);
+
+  process.stdout.write(`\nsummon complete \u2014 ${cfg.fly_app} deployed.\n`);
 }

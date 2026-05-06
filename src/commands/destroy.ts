@@ -11,7 +11,7 @@ export async function run(cfg: AgentConfig): Promise<void> {
   const confirmation = await readLine();
 
   if (confirmation.trim() !== cfg.name) {
-    process.stderr.write(`Aborted — confirmation did not match "${cfg.name}".\n`);
+    process.stderr.write(`Aborted \u2014 confirmation did not match "${cfg.name}".\n`);
     process.exit(1);
   }
 

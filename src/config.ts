@@ -11,7 +11,7 @@ export interface AgentConfig {
   vm_memory_mb: number;
   volume_name: string;
   volume_size_gb: number;
-  hermes_git_ref: string;
+  hermes_image_tag: string;
   hermes_model: string;
   infisical_env: string;
   infisical_path: string;
@@ -27,7 +27,7 @@ const REQUIRED_FIELDS: (keyof AgentConfig)[] = [
   "vm_memory_mb",
   "volume_name",
   "volume_size_gb",
-  "hermes_git_ref",
+  "hermes_image_tag",
   "hermes_model",
   "infisical_env",
   "infisical_path",
@@ -71,7 +71,7 @@ export function loadAgentConfig(name: string): AgentConfig {
   if (typeof cfg.vm_memory_mb !== "number") throw new Error(`${label}: field "vm_memory_mb" must be a number`);
   if (typeof cfg.volume_name !== "string") throw new Error(`${label}: field "volume_name" must be a string`);
   if (typeof cfg.volume_size_gb !== "number") throw new Error(`${label}: field "volume_size_gb" must be a number`);
-  if (typeof cfg.hermes_git_ref !== "string") throw new Error(`${label}: field "hermes_git_ref" must be a string`);
+  if (typeof cfg.hermes_image_tag !== "string") throw new Error(`${label}: field "hermes_image_tag" must be a string`);
   if (typeof cfg.hermes_model !== "string") throw new Error(`${label}: field "hermes_model" must be a string`);
   if (typeof cfg.infisical_env !== "string") throw new Error(`${label}: field "infisical_env" must be a string`);
   if (typeof cfg.infisical_path !== "string") throw new Error(`${label}: field "infisical_path" must be a string`);

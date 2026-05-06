@@ -162,7 +162,7 @@ For PM. Source of truth: `.team/design/DESIGN.md`. Each ticket = 2-4 engineer ho
 **Plan:**
 - `hermes/entrypoint.sh` (`#!/usr/bin/env bash`, `set -euo pipefail`):
   - Validate `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`, `INFISICAL_PATH`, `INFISICAL_ENV` are set; fail fast with a clear one-line error per missing var.
-  - On first boot only (`/data/config.yaml` absent): copy `/opt/hermes-defaults/config.yaml` → `/data/config.yaml`. Subsequent boots use the volume copy (DESIGN §2 note).
+  - On first boot only (`/opt/data/config.yaml` absent): copy `/opt/hermes-defaults/config.yaml` → `/opt/data/config.yaml`. Subsequent boots use the volume copy (DESIGN §2 note).
   - POST `https://app.infisical.com/api/v1/auth/universal-auth/login` with curl, parse `accessToken` with `jq` → `INFISICAL_TOKEN`.
   - `exec infisical run --token "$INFISICAL_TOKEN" --projectId "$INFISICAL_PROJECT_ID" --env "$INFISICAL_ENV" --path "$INFISICAL_PATH" -- <hermes invocation from T1>`.
 - `hermes/config.yaml`: minimal Hermes behavioural config. Set `model: openrouter/anthropic/claude-opus-4.6` and the discord block from `.team/research/hermes.md` §3 (`require_mention: true`, `reactions: true`, `reply_to_mode: "all"`). If T1 finds Hermes reads everything from env, this file may be near-empty — commit a stub.
@@ -180,7 +180,7 @@ For PM. Source of truth: `.team/design/DESIGN.md`. Each ticket = 2-4 engineer ho
 ### T9: `summon` command + `fly.toml.tmpl` + render helpers
 **Goal:** `bun run summon ifrit` executes DESIGN §7 steps 1-7 idempotently. Step 8 (verify) lands in T11.
 **Plan:**
-- Author `fly/fly.toml.tmpl`: `app = "{{APP_NAME}}"`, `primary_region = "{{PRIMARY_REGION}}"`, `[build]` Dockerfile-driven, `[[mounts]]` binding `hermes_data` → `/data`, `[[vm]]` shared-cpu-1x / 512MB, `[[restart]]` on-failure retries=10, no `[[services]]` (no inbound HTTP). Two tokens only.
+- Author `fly/fly.toml.tmpl`: `app = "{{APP_NAME}}"`, `primary_region = "{{PRIMARY_REGION}}"`, `[build]` Dockerfile-driven, `[[mounts]]` binding `hermes_data` → `/opt/data`, `[[vm]]` shared-cpu-1x / 512MB, `[[restart]]` on-failure retries=10, no `[[services]]` (no inbound HTTP). Two tokens only.
 - `src/lib/render.ts`:
   - `renderFlyToml(config): string` — token replacement (`{{APP_NAME}}`, `{{PRIMARY_REGION}}`).
   - `stageBuildContext(config): Promise<{ dir, flyTomlPath, dockerfilePath }>` — tempdir, write rendered `fly.toml`, copy `hermes/Dockerfile`, `entrypoint.sh`, `config.yaml`.

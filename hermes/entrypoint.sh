@@ -1,7 +1,4 @@
-#!/bin/bash
-# Exchanges Infisical machine-identity creds for a token, then execs the
-# upstream Hermes entrypoint with secrets injected via `infisical run`.
-# Called by tini; upstream entrypoint ends with `exec hermes "$@"`.
+#!/usr/bin/env bash
 set -euo pipefail
 
 : "${INFISICAL_CLIENT_ID:?INFISICAL_CLIENT_ID not set}"
@@ -20,8 +17,6 @@ INFISICAL_TOKEN=$(
 )
 export INFISICAL_TOKEN
 
-# Seed config.yaml on first boot before upstream entrypoint runs its own
-# dotenv/config bootstrap, so the baked-in defaults are in place.
 HERMES_HOME="${HERMES_HOME:-/opt/data}"
 if [ ! -f "$HERMES_HOME/config.yaml" ]; then
   mkdir -p "$HERMES_HOME"

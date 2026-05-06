@@ -9,7 +9,7 @@ volume_name    = "hermes_data"
 volume_size_gb = 10
 
 hermes_git_ref = "latest"
-hermes_model   = "openrouter/anthropic/claude-opus-4.6"
+hermes_model   = "deepseek/deepseek-v4-pro"
 
 infisical_env  = "prod"
 infisical_path = "/shiva"

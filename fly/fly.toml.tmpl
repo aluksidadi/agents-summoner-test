@@ -1,0 +1,21 @@
+app            = "{{APP_NAME}}"
+primary_region = "{{PRIMARY_REGION}}"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PYTHONUNBUFFERED = "1"
+  HERMES_HOME      = "/opt/data"
+
+[[mounts]]
+  source      = "hermes_data"
+  destination = "/opt/data"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "512mb"
+
+[[restart]]
+  policy  = "on-failure"
+  retries = 10

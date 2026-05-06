@@ -224,6 +224,42 @@ This matches the project's design decision (one Fly app per agent).
 
 ---
 
+## Volume Destroy Semantics
+
+**Volumes ARE cascade-deleted when an app is destroyed.** The Fly docs state explicitly:
+"When you destroy an app, you delete its volumes and volume snapshots."
+Source: https://fly.io/docs/apps/delete/
+
+There is no separate volume cleanup step needed — `fly apps destroy <app-name>` removes
+everything. The `-y` / `--yes` flag suppresses the confirmation prompt, useful in the
+launcher's non-interactive `destroy` command.
+
+**Recommended destroy sequence for the launcher:**
+
+```bash
+# 1. (Optional but recommended) back up data if needed — there is no undo
+# 2. Destroy the app; volumes and snapshots are cascade-deleted
+fly apps destroy hermes-ifrit --yes
+```
+
+One command is sufficient. **Do not** run `fly volumes destroy` first — the volume
+is still attached to a running machine at that point and Fly will reject the call
+("Volumes attached to Machines can't be destroyed"; source: https://fly.io/docs/volumes/volume-manage/).
+The cascade via `fly apps destroy` handles the ordering internally.
+
+If the launcher needs to verify cleanup after the fact:
+
+```bash
+fly volumes list --app hermes-ifrit   # should return empty after destroy
+```
+
+Note: destroyed volumes enter a `pending_destroy` state for 24 hours before permanent
+deletion (source: https://fly.io/docs/flyctl/volumes-destroy/). They will not show in
+`fly volumes list` but are not immediately wiped from Fly's storage. This does not
+affect billing — the app is gone and charges stop immediately on app destruction.
+
+---
+
 ## Open Questions
 
 1. **Hermes Docker image availability** — If `ghcr.io/nousresearch/hermes-agent` is

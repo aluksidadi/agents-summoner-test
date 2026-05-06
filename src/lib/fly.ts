@@ -101,22 +101,25 @@ export async function setSecrets(
 
 export async function deploy(
   app: string,
-  configPath: string,
-  dockerfilePath: string,
+  buildDir: string,
   buildArgs: Record<string, string>
 ): Promise<void> {
+  const { join } = await import("path");
   const buildArgFlags = Object.entries(buildArgs).flatMap(([k, v]) => [
     "--build-arg",
     `${k}=${v}`,
   ]);
+  // buildDir is the staged tempdir — it is both the Docker build context
+  // (WORKING_DIRECTORY) and the location of fly.toml and Dockerfile.
   await fly([
     "deploy",
+    buildDir,
     "--app",
     app,
     "--config",
-    configPath,
+    join(buildDir, "fly.toml"),
     "--dockerfile",
-    dockerfilePath,
+    join(buildDir, "Dockerfile"),
     "--strategy",
     "immediate",
     ...buildArgFlags,

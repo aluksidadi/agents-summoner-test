@@ -1,0 +1,22 @@
+name           = "ifrit"
+display_name   = "Ifrit"
+
+fly_app        = "hermes-ifrit"
+primary_region = "ord"
+vm_size        = "shared-cpu-1x"
+vm_memory_mb   = 512
+volume_name    = "hermes_data"
+volume_size_gb = 10
+
+hermes_git_ref = "main"
+hermes_model   = "openrouter/anthropic/claude-opus-4.6"
+
+infisical_env  = "prod"
+infisical_path = "/ifrit"
+
+required_secrets = [
+  "DISCORD_BOT_TOKEN",
+  "DISCORD_HOME_CHANNEL",
+  "DISCORD_ALLOWED_USERS",
+  "OPENROUTER_API_KEY",
+]

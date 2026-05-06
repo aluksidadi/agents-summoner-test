@@ -1,0 +1,23 @@
+{
+  "name": "agents-summoner",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "summon": "bun src/cli.ts summon",
+    "deploy": "bun src/cli.ts deploy",
+    "secrets": "bun src/cli.ts secrets",
+    "logs": "bun src/cli.ts logs",
+    "status": "bun src/cli.ts status",
+    "destroy": "bun src/cli.ts destroy",
+    "list": "bun src/cli.ts list",
+    "doctor": "bun src/cli.ts doctor",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "smol-toml": "^1.3.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^6.0.3"
+  }
+}

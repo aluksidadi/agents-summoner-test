@@ -84,8 +84,8 @@ volume_name    = "hermes_data"
 volume_size_gb = 10
 
 # Hermes
-hermes_git_ref = "main"              # commit SHA preferred for repro; "main" acceptable in v1
-hermes_model   = "openrouter/anthropic/claude-opus-4.6"
+hermes_image_tag = "latest"          # docker.io/nousresearch/hermes-agent tag; pin to a digest for repro
+hermes_model     = "openrouter/anthropic/claude-opus-4.6"
 
 # Infisical (per-agent folder — must already exist + machine identity must be created)
 infisical_env  = "prod"
@@ -177,7 +177,7 @@ Two distinct stores; do not confuse them.
               │          --projectId "$INFISICAL_PROJECT_ID" \   │
               │          --env=prod --path=/ifrit \              │
               │          -- /opt/hermes/docker/entrypoint.sh \   │
-              │             hermes discord                       │
+              │             hermes gateway run                    │
               └──────────────┬───────────────────────────────────┘
                              │ infisical run injects:
                              │   DISCORD_BOT_TOKEN
@@ -200,30 +200,23 @@ Key properties:
 
 ---
 
-## 6. Container build strategy (Q2 decision)
+## 6. Container build strategy (Q2 decision — REVISED 2026-05-06 after T1 probe)
 
-**Decision: build from source via multi-stage Dockerfile, pinning the Hermes git ref from the agent config.**
+**Decision: `FROM nousresearch/hermes-agent:<sha-pinned-tag>` (Docker Hub) as base, layer Infisical CLI + our entrypoint on top.**
 
-`hermes/Dockerfile` (sketch):
+T1's probe (SHA `b62a82e0c3fbcdf219824c1512de180bae8a125c`) confirmed:
+- The upstream image **is published** at `docker.io/nousresearch/hermes-agent` (not `ghcr.io/...` — that returns 403). Pushed by upstream's `.github/workflows/docker-publish.yml` on every `main` push and on release tags.
+- The original §6 plan to copy/re-derive upstream's Dockerfile is unnecessary. Pinning a Docker Hub tag (or digest) is reproducible and avoids drift.
+
+`hermes/Dockerfile`:
 
 ```dockerfile
-# Stage 1: clone Hermes at the pinned ref
-FROM debian:13.4-slim AS source
-ARG HERMES_GIT_REF=main
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-RUN git clone https://github.com/NousResearch/hermes-agent /src \
-  && cd /src && git checkout "$HERMES_GIT_REF"
+ARG HERMES_IMAGE_TAG=latest
+FROM nousresearch/hermes-agent:${HERMES_IMAGE_TAG}
 
-# Stage 2: build the upstream Hermes image, but using our cloned source
-FROM debian:13.4
-COPY --from=source /src /opt/hermes
-# Reproduce the upstream Dockerfile's apt/uv setup here, OR docker build the upstream
-# Dockerfile directly via `fly deploy --build-arg` — see entrypoint discussion below.
-
-# Add Infisical CLI
+# Infisical CLI for secrets injection at runtime
 RUN curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | bash \
-  && apt-get install -y infisical jq curl \
+  && apt-get install -y --no-install-recommends infisical jq curl \
   && rm -rf /var/lib/apt/lists/*
 
 ENV INFISICAL_DISABLE_UPDATE_CHECK=true
@@ -232,18 +225,31 @@ COPY entrypoint.sh /usr/local/bin/agent-entrypoint.sh
 COPY config.yaml /opt/hermes-defaults/config.yaml
 RUN chmod +x /usr/local/bin/agent-entrypoint.sh
 
-ENTRYPOINT ["/usr/local/bin/agent-entrypoint.sh"]
-CMD ["hermes", "discord"]
+# tini wrapper preserved (upstream relies on it for zombie reaping of MCP/git/bun subprocs).
+# Our entrypoint exchanges the Infisical token, then invokes `infisical run` which
+# execs upstream's /opt/hermes/docker/entrypoint.sh with the agent CMD.
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/usr/local/bin/agent-entrypoint.sh"]
+CMD ["gateway", "run"]
 ```
 
-Operationally, the cleanest path is to **use upstream's Dockerfile as the base** rather than re-derive it: a one-liner stage that does `git clone … && docker build` won't work, but we can `FROM ghcr.io/nousresearch/hermes-agent:<tag>` if the image gets published, **or** copy the upstream Dockerfile into our repo and add our entrypoint + Infisical CLI on top. The first ticket (Hermes-probe-in-docker) will resolve which path is real.
+**Schema delta:** `agents/<name>.toml` field `hermes_git_ref` → renamed to `hermes_image_tag` (we pin a Docker Hub tag/digest, not a git SHA). The two are equivalent for reproducibility purposes since upstream's CI builds the image deterministically per commit; using the published tag avoids the ~6 GB rebuild on every deploy. PM/T4: update parser + example accordingly.
+
+**Entrypoint chain (load-bearing detail):**
+```
+tini → /usr/local/bin/agent-entrypoint.sh (token exchange)
+     → infisical run --path=/<agent> -- /opt/hermes/docker/entrypoint.sh (upstream init)
+     → hermes gateway run (foreground Discord gateway)
+```
+Order matters: our entrypoint runs **before** Infisical injects env, upstream's runs **after** so it sees the secrets during its UID remap / dotenv copy / skill sync.
+
+**CLI subcommand correction:** the foreground command is `hermes gateway run`, **not** `hermes discord` as originally stated in §5 and the integration dossier. T1 source-confirmed; `hermes discord` does not exist. All references throughout this doc updated.
 
 **Tradeoff documented:**
-- Pro: reproducible (SHA-pinned), no dependency on an unverified GHCR tag, full control of base image + Infisical CLI install.
-- Con: first deploy is multi-minute (Debian + Python + uv layers compile). Mitigation: Fly remote builder caches layers; per-agent rebuild only fires when `hermes_git_ref` changes.
-- Con: we shadow upstream's Dockerfile. If upstream changes their build, our copy drifts. Mitigation: Track upstream weekly via dependabot-equivalent ticket; for v1 we accept drift.
+- Pro: reproducible (image-tag-pinned), no upstream Dockerfile shadowing, no Debian/uv compile per deploy. Cold-start is image pull only (~6 GB, but cached on Fly builder after first pull).
+- Pro: simpler Dockerfile — three layers on top of upstream.
+- Con: dependent on upstream Docker Hub uptime + Docker Hub rate limits. Mitigation: pin a digest (`nousresearch/hermes-agent@sha256:…`) rather than a tag once we know which tag we want; if Docker Hub ever goes dark, fallback is the original build-from-source plan, kept in git history.
 
-**Open: revisit if upstream publishes a stable image.** Probing this is ticket #1.
+**Revisit triggers:** upstream stops publishing the image; we need a custom Hermes patch; Docker Hub rate-limiting becomes a deploy blocker.
 
 ---
 
@@ -257,7 +263,7 @@ Numbered steps the launcher executes. Each is idempotent on its own.
 4. **Ensure app exists.** `flyctl apps list --json | jq` for `hermes-ifrit`. If missing: `flyctl apps create hermes-ifrit --org <org>`.
 5. **Ensure volume exists.** `flyctl volumes list --app hermes-ifrit --json`. If no volume named `hermes_data` in `primary_region`: `flyctl volumes create hermes_data --app hermes-ifrit --region ord --size 10 --yes`.
 6. **Push bootstrap secrets.** `flyctl secrets set --app hermes-ifrit --stage INFISICAL_CLIENT_ID=… INFISICAL_CLIENT_SECRET=… INFISICAL_PROJECT_ID=… INFISICAL_PATH=/ifrit INFISICAL_ENV=prod`. (Stage so the next step's deploy applies them atomically.)
-7. **Build + deploy.** `flyctl deploy --app hermes-ifrit --config <tempdir>/fly.toml --dockerfile <tempdir>/Dockerfile --build-arg HERMES_GIT_REF=<ref> --strategy immediate`.
+7. **Build + deploy.** `flyctl deploy --app hermes-ifrit --config <tempdir>/fly.toml --dockerfile <tempdir>/Dockerfile --build-arg HERMES_IMAGE_TAG=<tag> --strategy immediate`.
 8. **Verify.** `flyctl status --app hermes-ifrit --json` until machine state is `started`. Tail `flyctl logs --app hermes-ifrit` for ~30 seconds, look for `Discord` connection log line. Print summary.
 
 Re-running `summon` on an already-deployed agent is safe: steps 4 and 5 detect existing resources, step 6 stages identical secrets (no-op restart), step 7 rebuilds and rolls.

@@ -12,8 +12,8 @@ agents-summoner/
 │   ├── ifrit.toml
 │   └── shiva.toml
 ├── hermes/
-│   ├── Dockerfile     # multi-stage; pins Hermes git SHA from agent config
-│   ├── entrypoint.sh  # exchanges Infisical creds → token, execs hermes discord
+│   ├── Dockerfile     # FROM nousresearch/hermes-agent:<sha> + Infisical CLI layer
+│   ├── entrypoint.sh  # exchanges Infisical creds → token, execs hermes gateway run
 │   └── config.yaml    # committed Hermes behavioural config; baked into image
 ├── fly/
 │   └── fly.toml.tmpl  # {{APP_NAME}} and {{PRIMARY_REGION}} substituted at deploy
@@ -82,6 +82,8 @@ Details: `.team/design/DESIGN.md §7`.
 
 ## Key invariants
 
+- Hermes Discord gateway command is `hermes gateway run` (not `hermes discord` — that subcommand does not exist). Load-bearing for `hermes/entrypoint.sh` and Dockerfile CMD.
+- Hermes base image is `nousresearch/hermes-agent` on Docker Hub (not GHCR — `ghcr.io/nousresearch/hermes-agent` returns 403). See `.team/learnings.md` T01.
 - Each agent's runtime secrets live in its own Infisical folder (`/ifrit`, `/shiva`). The repo never holds them.
 - Fly holds only three bootstrap secrets per app: `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`.
 - One Fly app per agent; one Fly volume per agent mounted at `/opt/data`.

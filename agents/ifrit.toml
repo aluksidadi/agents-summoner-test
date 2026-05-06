@@ -8,7 +8,7 @@ vm_memory_mb   = 512
 volume_name    = "hermes_data"
 volume_size_gb = 10
 
-hermes_git_ref = "main"
+hermes_image_tag = "latest"
 hermes_model   = "openrouter/anthropic/claude-opus-4.6"
 
 infisical_env  = "prod"
